@@ -79,7 +79,7 @@
         }
     </style>
     <script>
-        // Set theme on initial load
+        // Set theme on initial load to prevent flash of wrong theme
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
         } else {
@@ -162,7 +162,7 @@
                 </div>
                 <div class="mt-4">
                     <label for="class-credits" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Credits</label>
-                    <input type="number" id="class-credits" step="0.1" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800 dark:text-gray-200" placeholder="e.g., 3 or 1.5" required>
+                    <input type="number" id="class-credits" step="0.1" min="0" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800 dark:text-gray-200" placeholder="e.g., 3 or 1.5" required>
                 </div>
                 <div class="mt-8 flex justify-end space-x-3">
                     <button type="button" class="modal-cancel-btn bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold py-2 px-5 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Cancel</button>
@@ -192,7 +192,7 @@
                     </div>
                     <div class="ml-3 text-sm">
                         <label for="use-aplus" class="font-medium text-gray-700 dark:text-gray-300">My school uses A+ grades</label>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Enable if A+ (4.0) and A (4.0) are distinct grades.</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Enable if A+ and A are distinct GPA values.</p>
                     </div>
                 </div>
                 <div class="mt-8 flex justify-end space-x-3">
@@ -217,17 +217,12 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, addDoc, deleteDoc, onSnapshot, collection, query, where, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, deleteDoc, onSnapshot, collection, query, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
+        // --- Firebase Configuration ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "DEMO", authDomain: "DEMO", projectId: "DEMO" };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -236,6 +231,7 @@
         let currentUserId = null;
         let masterListenerUnsubscribe = null;
         
+        // --- Settings Object with Defaults ---
         let settings = {
             priorityGrade: 80,
             priorityGpa: 3.0,
@@ -252,10 +248,7 @@
             addClassBtn: document.getElementById('add-class-btn'),
             settingsBtn: document.getElementById('settings-btn'),
             themeToggleBtn: document.getElementById('theme-toggle-btn'),
-            classModal: {
-                el: document.getElementById('class-modal'),
-                form: document.getElementById('class-form'),
-            },
+            classModal: { el: document.getElementById('class-modal'), form: document.getElementById('class-form') },
             settingsModal: {
                 el: document.getElementById('settings-modal'),
                 form: document.getElementById('settings-form'),
@@ -276,10 +269,7 @@
         // --- Settings & Theme Logic ---
         function loadSettings() {
             const savedSettings = localStorage.getItem('gradeTrackerSettings');
-            if (savedSettings) {
-                settings = JSON.parse(savedSettings);
-            }
-            // Populate settings modal
+            if (savedSettings) settings = JSON.parse(savedSettings);
             ui.settingsModal.priorityGradeInput.value = settings.priorityGrade;
             ui.settingsModal.priorityGpaInput.value = settings.priorityGpa;
             ui.settingsModal.useAPlusCheckbox.checked = settings.useAPlus;
@@ -334,7 +324,11 @@
                 attachMasterListener();
             } else {
                 try {
-                    await signInAnonymously(auth);
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
                 } catch (error) {
                     console.error("Authentication failed:", error);
                     ui.loadingIndicator.textContent = 'Error: Could not authenticate.';
@@ -382,23 +376,22 @@
         function updatePriorities(currentGpa) {
             ui.prioritiesContainer.innerHTML = '';
             let priorityCount = 0;
-
+            const classCards = document.querySelectorAll('#classes-container .class-card');
             const gpaIsPriority = currentGpa > 0 && currentGpa < settings.priorityGpa;
 
-            document.querySelectorAll('#classes-container .class-card').forEach(card => {
+            classCards.forEach(card => {
                 const gradePercent = parseFloat(card.dataset.gradePercent);
-                const isPriority = gradePercent < settings.priorityGrade || gpaIsPriority;
+                const classIsPriority = gradePercent >= 0 && gradePercent < settings.priorityGrade;
+                const isPriority = classIsPriority || (gpaIsPriority && classCards.length > 0);
 
-                // Reset visual indicators
                 card.classList.remove('border-amber-500', 'dark:border-amber-400', 'shadow-amber-200/50', 'dark:shadow-amber-900/50', 'shadow-xl');
 
                 if (isPriority) {
                     priorityCount++;
                     const clone = card.cloneNode(true);
-                    clone.querySelector('.delete-class-btn').remove(); // No deleting from priorities
+                    clone.querySelector('.delete-class-btn')?.remove();
                     clone.querySelectorAll('.add-assignment-form, .delete-assignment-btn').forEach(el => el.remove());
                     ui.prioritiesContainer.appendChild(clone);
-                    // Add visual indicator to the original card
                     card.classList.add('border-amber-500', 'dark:border-amber-400', 'shadow-amber-200/50', 'dark:shadow-amber-900/50', 'shadow-xl');
                 }
             });
@@ -415,22 +408,24 @@
             if (!currentUserId) return;
             if (masterListenerUnsubscribe) masterListenerUnsubscribe();
 
-            const q = query(collection(db, `users/${currentUserId}/classes`));
+            const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/classes`));
             
             masterListenerUnsubscribe = onSnapshot(q, (snapshot) => {
                 ui.noClassesMessage.classList.toggle('hidden', !snapshot.empty);
                 snapshot.docChanges().forEach((change) => {
                     const classId = change.doc.id;
                     if (change.type === "added") {
-                        const classData = change.doc.data();
-                        const classCard = createClassCard(classId, classData.name, classData.credits);
-                        ui.classesContainer.appendChild(classCard);
-                        attachAssignmentListener(classId);
+                        if (!document.getElementById(classId)) {
+                           const classData = change.doc.data();
+                           const classCard = createClassCard(classId, classData.name, classData.credits);
+                           ui.classesContainer.appendChild(classCard);
+                           attachAssignmentListener(classId);
+                        }
                     }
                     if (change.type === "removed") {
                         document.getElementById(classId)?.remove();
                         if (assignmentListeners.has(classId)) {
-                            assignmentListeners.get(classId)();
+                            assignmentListeners.get(classId)(); // Unsubscribe
                             assignmentListeners.delete(classId);
                         }
                     }
@@ -440,7 +435,7 @@
         }
 
         function attachAssignmentListener(classId) {
-            const q = query(collection(db, `users/${currentUserId}/classes/${classId}/assignments`));
+            const q = query(collection(db, `artifacts/${appId}/users/${currentUserId}/classes/${classId}/assignments`));
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 let totalEarned = 0, totalPossible = 0;
                 const assignmentsHtml = snapshot.docs.map(doc => {
@@ -506,8 +501,8 @@
                 </div>
                 <form class="add-assignment-form mt-4 flex items-center gap-2">
                     <input type="text" name="name" class="flex-grow text-sm p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-indigo-400" placeholder="Assignment Name" required>
-                    <input type="number" name="earned" class="w-16 text-sm p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-indigo-400" placeholder="Pts" required>
-                    <input type="number" name="possible" class="w-16 text-sm p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-indigo-400" placeholder="Max" required>
+                    <input type="number" name="earned" step="any" min="0" class="w-16 text-sm p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-indigo-400" placeholder="Pts" required>
+                    <input type="number" name="possible" step="any" min="0" class="w-16 text-sm p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-indigo-400" placeholder="Max" required>
                     <button type="submit" class="bg-gray-700 text-white w-9 h-9 rounded-md hover:bg-gray-800 dark:bg-indigo-600 dark:hover:bg-indigo-500 flex-shrink-0 flex items-center justify-center transition-transform transform hover:scale-110"><i class="fas fa-plus"></i></button>
                 </form>
             `;
@@ -524,7 +519,7 @@
             const className = document.getElementById('class-name').value;
             const classCredits = document.getElementById('class-credits').value;
             try {
-                await addDoc(collection(db, `users/${currentUserId}/classes`), { name: className, credits: parseFloat(classCredits) });
+                await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/classes`), { name: className, credits: parseFloat(classCredits) });
                 ui.classModal.el.classList.remove('flex');
                 ui.classModal.form.reset();
             } catch (error) { console.error("Error adding class:", error); }
@@ -542,7 +537,7 @@
                 const form = e.target;
                 const classId = form.closest('.class-card').id;
                 try {
-                    await addDoc(collection(db, `users/${currentUserId}/classes/${classId}/assignments`), {
+                    await addDoc(collection(db, `artifacts/${appId}/users/${currentUserId}/classes/${classId}/assignments`), {
                         name: form.elements.name.value,
                         earned: parseFloat(form.elements.earned.value),
                         possible: parseFloat(form.elements.possible.value),
@@ -562,11 +557,12 @@
                 const confirmed = await showConfirmation('Delete Class?', `This will permanently delete "${className}" and all of its assignments.`);
                 if (confirmed) {
                     try {
-                        const assignmentsQuery = query(collection(db, `users/${currentUserId}/classes/${card.id}/assignments`));
+                        const classRef = doc(db, `artifacts/${appId}/users/${currentUserId}/classes`, card.id);
+                        const assignmentsQuery = query(collection(classRef, 'assignments'));
                         const assignmentsSnapshot = await getDocs(assignmentsQuery);
                         const batch = writeBatch(db);
                         assignmentsSnapshot.forEach(doc => batch.delete(doc.ref));
-                        batch.delete(doc(db, `users/${currentUserId}/classes`, card.id));
+                        batch.delete(classRef);
                         await batch.commit();
                     } catch (error) { console.error("Error deleting class and its assignments:", error); }
                 }
@@ -576,10 +572,11 @@
                 const classId = deleteAssignmentBtn.closest('.class-card').id;
                 const { assignmentId } = deleteAssignmentBtn.dataset;
                 try {
-                    await deleteDoc(doc(db, `users/${currentUserId}/classes/${classId}/assignments`, assignmentId));
+                    await deleteDoc(doc(db, `artifacts/${appId}/users/${currentUserId}/classes/${classId}/assignments`, assignmentId));
                 } catch(error) { console.error("Error deleting assignment:", error); }
             }
         });
     </script>
 </body>
 </html>
+
