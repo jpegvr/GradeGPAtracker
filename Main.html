@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,9 +8,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        html {
+            scroll-behavior: smooth;
+        }
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8fafc; /* Lighter gray background */
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         .modal-backdrop, .confirm-backdrop {
             display: none;
@@ -27,12 +30,6 @@
             -webkit-backdrop-filter: blur(4px);
         }
         .modal-content, .confirm-content {
-            background-color: white;
-            padding: 2rem;
-            border-radius: 0.75rem; /* More rounded */
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             transform: scale(0.95);
             opacity: 0;
             transition: all 0.2s ease-in-out;
@@ -63,23 +60,54 @@
         .summary-card-gradient {
             background-image: linear-gradient(to right, #6366f1, #818cf8);
         }
+        .dark .summary-card-gradient {
+            background-image: linear-gradient(to right, #4f46e5, #6366f1);
+        }
+        /* For custom scrollbar in assignments list */
+        .assignments-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .assignments-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .assignments-list::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 20px;
+        }
+        .dark .assignments-list::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+        }
     </style>
+    <script>
+        // Set theme on initial load
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
 </head>
-<body class="text-gray-800">
+<body class="bg-slate-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
 
     <div id="app-container" class="container mx-auto p-4 md:p-8 max-w-7xl">
-        <!-- Header -->
         <header class="mb-10 text-center">
+            <div class="flex justify-end items-center gap-4 mb-4">
+                <button id="settings-btn" class="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" aria-label="Settings">
+                    <i class="fas fa-cog text-xl"></i>
+                </button>
+                <button id="theme-toggle-btn" class="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" aria-label="Toggle theme">
+                    <i class="fas fa-moon text-xl dark:hidden"></i>
+                    <i class="fas fa-sun text-xl hidden dark:inline"></i>
+                </button>
+            </div>
             <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-sky-500">Grade & GPA Tracker</h1>
-            <p class="text-gray-500 mt-2">A clear view of your academic progress. Everything is saved automatically.</p>
-            <div id="loading-indicator" class="mt-4 text-gray-500 flex items-center justify-center">
+            <p class="text-gray-500 dark:text-gray-400 mt-2">A clear view of your academic progress. Everything is saved automatically.</p>
+            <div id="loading-indicator" class="mt-4 text-gray-500 dark:text-gray-400 flex items-center justify-center">
                 <i class="fas fa-spinner animate-spin mr-2"></i>Initializing your dashboard...
             </div>
-            <p id="user-info" class="text-xs text-gray-400 mt-2 hidden">User ID: <span id="userId-display"></span></p>
         </header>
         
-        <!-- GPA Summary Card -->
-        <div class="summary-card-gradient text-white p-6 rounded-2xl shadow-lg mb-10 sticky top-4 z-10">
+        <div class="summary-card-gradient text-white p-6 rounded-2xl shadow-lg mb-10 sticky top-4 z-10 backdrop-blur-sm bg-opacity-80">
             <h2 class="text-2xl font-bold mb-4 opacity-90">Semester Summary</h2>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                 <div>
@@ -101,67 +129,105 @@
             </div>
         </div>
 
-        <!-- Controls -->
+        <div id="priorities-section" class="mb-10 hidden">
+            <h2 class="text-2xl font-bold mb-4 text-amber-600 dark:text-amber-500 flex items-center gap-2"><i class="fas fa-star"></i>Priorities</h2>
+            <div id="priorities-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                </div>
+        </div>
+        <hr id="priorities-hr" class="mb-10 border-gray-300 dark:border-gray-700 hidden" />
+
         <div class="flex justify-center mb-10">
-            <button id="add-class-btn" class="bg-indigo-600 text-white font-bold py-3 px-8 rounded-full hover:bg-indigo-700 transition-all transform hover:scale-105 shadow-lg focus:outline-none focus:ring-4 focus:ring-indigo-300">
+            <button id="add-class-btn" class="bg-indigo-600 text-white font-bold py-3 px-8 rounded-full hover:bg-indigo-700 dark:hover:bg-indigo-500 transition-all transform hover:scale-105 shadow-lg focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-800">
                 <i class="fas fa-plus mr-2"></i> Add New Class
             </button>
         </div>
 
-        <!-- Classes Container -->
+        <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">All Classes</h2>
         <div id="classes-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-            <!-- Class cards will be injected here -->
-        </div>
-         <div id="no-classes-message" class="text-center py-20 px-6 bg-white rounded-2xl shadow-sm border hidden">
-            <i class="fas fa-folder-open text-7xl text-gray-300 mb-5"></i>
-            <h3 class="text-2xl font-semibold text-gray-700">Your Dashboard is Empty</h3>
-            <p class="text-gray-500 mt-2">Click the "Add New Class" button to begin tracking your grades.</p>
+            </div>
+        <div id="no-classes-message" class="text-center py-20 px-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 hidden">
+            <i class="fas fa-folder-open text-7xl text-gray-300 dark:text-gray-600 mb-5"></i>
+            <h3 class="text-2xl font-semibold text-gray-700 dark:text-gray-300">Your Dashboard is Empty</h3>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Click the "Add New Class" button to begin.</p>
         </div>
     </div>
 
-    <!-- Modals Container -->
     <div id="class-modal" class="modal-backdrop">
-        <div class="modal-content">
-            <h3 class="text-2xl font-bold mb-6 text-gray-800">Add a New Class</h3>
+        <div class="modal-content bg-white dark:bg-gray-800 p-8 rounded-xl w-11/12 max-w-lg shadow-2xl">
+            <h3 class="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">Add a New Class</h3>
             <form id="class-form">
                 <div>
-                    <label for="class-name" class="block text-sm font-medium text-gray-700 mb-1">Class Name</label>
-                    <input type="text" id="class-name" class="mt-1 block w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="e.g., World Literature" required>
+                    <label for="class-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Class Name</label>
+                    <input type="text" id="class-name" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800 dark:text-gray-200" placeholder="e.g., World Literature" required>
                 </div>
                 <div class="mt-4">
-                    <label for="class-credits" class="block text-sm font-medium text-gray-700 mb-1">Credits</label>
-                    <input type="number" id="class-credits" step="0.1" class="mt-1 block w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="e.g., 1 or 0.5" required>
+                    <label for="class-credits" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Credits</label>
+                    <input type="number" id="class-credits" step="0.1" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800 dark:text-gray-200" placeholder="e.g., 3 or 1.5" required>
                 </div>
                 <div class="mt-8 flex justify-end space-x-3">
-                    <button type="button" id="cancel-class-btn" class="bg-gray-200 text-gray-800 font-bold py-2 px-5 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
-                    <button type="submit" class="bg-indigo-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-indigo-700 transition-colors">Save Class</button>
+                    <button type="button" class="modal-cancel-btn bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold py-2 px-5 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-500 transition-colors">Save Class</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal-backdrop">
+        <div class="modal-content bg-white dark:bg-gray-800 p-8 rounded-xl w-11/12 max-w-lg shadow-2xl">
+            <h3 class="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">Settings</h3>
+            <form id="settings-form" class="space-y-6">
+                <div>
+                    <label for="priority-grade" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Priority Grade Threshold (%)</label>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Flag classes with a grade below this percentage.</p>
+                    <input type="number" id="priority-grade" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg" placeholder="e.g., 80">
+                </div>
+                <div>
+                    <label for="priority-gpa" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Priority GPA Threshold</label>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Flag if overall semester GPA falls below this value.</p>
+                    <input type="number" step="0.1" id="priority-gpa" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg" placeholder="e.g., 3.0">
+                </div>
+                <div class="relative flex items-start">
+                    <div class="flex items-center h-5">
+                        <input id="use-aplus" name="use-aplus" type="checkbox" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <label for="use-aplus" class="font-medium text-gray-700 dark:text-gray-300">My school uses A+ grades</label>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Enable if A+ (4.0) and A (4.0) are distinct grades.</p>
+                    </div>
+                </div>
+                <div class="mt-8 flex justify-end space-x-3">
+                    <button type="button" class="modal-cancel-btn bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold py-2 px-5 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-500 transition-colors">Save Settings</button>
                 </div>
             </form>
         </div>
     </div>
 
     <div id="confirm-modal" class="confirm-backdrop">
-        <div class="confirm-content text-center">
+        <div class="confirm-content text-center bg-white dark:bg-gray-800 p-8 rounded-xl w-11/12 max-w-md shadow-2xl">
             <i class="fas fa-exclamation-triangle text-4xl text-yellow-400 mb-4"></i>
-            <h3 id="confirm-title" class="text-xl font-bold text-gray-800 mb-2">Are you sure?</h3>
-            <p id="confirm-message" class="text-gray-600 mb-6">This action cannot be undone.</p>
+            <h3 id="confirm-title" class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">Are you sure?</h3>
+            <p id="confirm-message" class="text-gray-600 dark:text-gray-300 mb-6">This action cannot be undone.</p>
             <div class="flex justify-center space-x-4">
-                <button id="confirm-cancel-btn" class="bg-gray-200 text-gray-800 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
+                <button id="confirm-cancel-btn" class="bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Cancel</button>
                 <button id="confirm-ok-btn" class="bg-red-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-700 transition-colors">Delete</button>
             </div>
         </div>
     </div>
 
-    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, addDoc, deleteDoc, onSnapshot, collection, query, where, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // --- Firebase Configuration (for Vercel, use Environment Variables) ---
-        // These global variables are placeholders for the environment you're using.
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "DEMO", authDomain: "DEMO", projectId: "DEMO" };
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -169,18 +235,33 @@
 
         let currentUserId = null;
         let masterListenerUnsubscribe = null;
+        
+        let settings = {
+            priorityGrade: 80,
+            priorityGpa: 3.0,
+            useAPlus: false
+        };
 
         // --- DOM Elements ---
         const ui = {
             classesContainer: document.getElementById('classes-container'),
+            prioritiesSection: document.getElementById('priorities-section'),
+            prioritiesContainer: document.getElementById('priorities-container'),
+            prioritiesHr: document.getElementById('priorities-hr'),
             loadingIndicator: document.getElementById('loading-indicator'),
-            userInfo: document.getElementById('user-info'),
-            userIdDisplay: document.getElementById('userId-display'),
             addClassBtn: document.getElementById('add-class-btn'),
+            settingsBtn: document.getElementById('settings-btn'),
+            themeToggleBtn: document.getElementById('theme-toggle-btn'),
             classModal: {
                 el: document.getElementById('class-modal'),
                 form: document.getElementById('class-form'),
-                cancelBtn: document.getElementById('cancel-class-btn'),
+            },
+            settingsModal: {
+                el: document.getElementById('settings-modal'),
+                form: document.getElementById('settings-form'),
+                priorityGradeInput: document.getElementById('priority-grade'),
+                priorityGpaInput: document.getElementById('priority-gpa'),
+                useAPlusCheckbox: document.getElementById('use-aplus')
             },
             noClassesMessage: document.getElementById('no-classes-message'),
             confirmModal: {
@@ -192,48 +273,69 @@
             }
         };
 
-        // --- Custom Confirmation Modal Logic ---
+        // --- Settings & Theme Logic ---
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('gradeTrackerSettings');
+            if (savedSettings) {
+                settings = JSON.parse(savedSettings);
+            }
+            // Populate settings modal
+            ui.settingsModal.priorityGradeInput.value = settings.priorityGrade;
+            ui.settingsModal.priorityGpaInput.value = settings.priorityGpa;
+            ui.settingsModal.useAPlusCheckbox.checked = settings.useAPlus;
+        }
+
+        function saveSettings() {
+            settings.priorityGrade = parseFloat(ui.settingsModal.priorityGradeInput.value) || 80;
+            settings.priorityGpa = parseFloat(ui.settingsModal.priorityGpaInput.value) || 3.0;
+            settings.useAPlus = ui.settingsModal.useAPlusCheckbox.checked;
+            localStorage.setItem('gradeTrackerSettings', JSON.stringify(settings));
+            updateOverallSummary(); // Recalculate everything with new settings
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        }
+
+        // --- Modal Logic ---
         function showConfirmation(title, message) {
             return new Promise((resolve) => {
                 ui.confirmModal.title.textContent = title;
                 ui.confirmModal.message.textContent = message;
                 ui.confirmModal.el.classList.add('flex');
-
-                const handleOk = () => {
-                    cleanup();
-                    resolve(true);
-                };
-                const handleCancel = () => {
-                    cleanup();
-                    resolve(false);
-                };
+                const handleOk = () => { cleanup(); resolve(true); };
+                const handleCancel = () => { cleanup(); resolve(false); };
                 const cleanup = () => {
                     ui.confirmModal.el.classList.remove('flex');
                     ui.confirmModal.okBtn.removeEventListener('click', handleOk);
                     ui.confirmModal.cancelBtn.removeEventListener('click', handleCancel);
                 };
-
                 ui.confirmModal.okBtn.addEventListener('click', handleOk);
                 ui.confirmModal.cancelBtn.addEventListener('click', handleCancel);
             });
         }
 
+        function setupModal(modalId, openBtnId) {
+            const modal = document.getElementById(modalId);
+            const openBtn = document.getElementById(openBtnId);
+            openBtn.addEventListener('click', () => modal.classList.add('flex'));
+            modal.querySelectorAll('.modal-cancel-btn').forEach(btn => {
+                btn.addEventListener('click', () => modal.classList.remove('flex'));
+            });
+        }
+        
         // --- App Initialization ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUserId = user.uid;
                 ui.loadingIndicator.classList.add('hidden');
-                ui.userInfo.classList.remove('hidden');
-                ui.userIdDisplay.textContent = currentUserId;
+                loadSettings();
                 attachMasterListener();
             } else {
                 try {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                } catch(error) {
+                    await signInAnonymously(auth);
+                } catch (error) {
                     console.error("Authentication failed:", error);
                     ui.loadingIndicator.textContent = 'Error: Could not authenticate.';
                 }
@@ -243,7 +345,14 @@
         // --- GPA Calculation & Summary ---
         function calculateClassGPA(percentage) {
             if (percentage === null || isNaN(percentage)) return 0;
-            if (percentage >= 0.93) return 4.0; if (percentage >= 0.90) return 3.7;
+            if (settings.useAPlus) {
+                if (percentage >= 0.97) return 4.0; // A+
+                if (percentage >= 0.93) return 4.0; // A
+                if (percentage >= 0.90) return 3.7; // A-
+            } else {
+                if (percentage >= 0.93) return 4.0; // A
+                if (percentage >= 0.90) return 3.7; // A-
+            }
             if (percentage >= 0.87) return 3.3; if (percentage >= 0.83) return 3.0;
             if (percentage >= 0.80) return 2.7; if (percentage >= 0.77) return 2.3;
             if (percentage >= 0.73) return 2.0; if (percentage >= 0.70) return 1.7;
@@ -253,7 +362,7 @@
         }
 
         function updateOverallSummary() {
-            const classCards = document.querySelectorAll('.class-card');
+            const classCards = document.querySelectorAll('#classes-container .class-card');
             let totalCredits = 0, totalGradePoints = 0;
             classCards.forEach(card => {
                 const credits = parseFloat(card.dataset.credits) || 0;
@@ -266,6 +375,37 @@
             document.getElementById('total-credits').textContent = totalCredits.toFixed(1);
             document.getElementById('total-grade-points').textContent = totalGradePoints.toFixed(2);
             document.getElementById('semester-gpa').textContent = semesterGPA.toFixed(2);
+
+            updatePriorities(semesterGPA);
+        }
+
+        function updatePriorities(currentGpa) {
+            ui.prioritiesContainer.innerHTML = '';
+            let priorityCount = 0;
+
+            const gpaIsPriority = currentGpa > 0 && currentGpa < settings.priorityGpa;
+
+            document.querySelectorAll('#classes-container .class-card').forEach(card => {
+                const gradePercent = parseFloat(card.dataset.gradePercent);
+                const isPriority = gradePercent < settings.priorityGrade || gpaIsPriority;
+
+                // Reset visual indicators
+                card.classList.remove('border-amber-500', 'dark:border-amber-400', 'shadow-amber-200/50', 'dark:shadow-amber-900/50', 'shadow-xl');
+
+                if (isPriority) {
+                    priorityCount++;
+                    const clone = card.cloneNode(true);
+                    clone.querySelector('.delete-class-btn').remove(); // No deleting from priorities
+                    clone.querySelectorAll('.add-assignment-form, .delete-assignment-btn').forEach(el => el.remove());
+                    ui.prioritiesContainer.appendChild(clone);
+                    // Add visual indicator to the original card
+                    card.classList.add('border-amber-500', 'dark:border-amber-400', 'shadow-amber-200/50', 'dark:shadow-amber-900/50', 'shadow-xl');
+                }
+            });
+
+            const showPriorities = priorityCount > 0;
+            ui.prioritiesSection.classList.toggle('hidden', !showPriorities);
+            ui.prioritiesHr.classList.toggle('hidden', !showPriorities);
         }
 
         // --- Firestore & Real-time Updates ---
@@ -273,9 +413,9 @@
 
         function attachMasterListener() {
             if (!currentUserId) return;
-            if (masterListenerUnsubscribe) masterListenerUnsubscribe(); // Unsubscribe from previous listener
+            if (masterListenerUnsubscribe) masterListenerUnsubscribe();
 
-            const q = query(collection(db, `artifacts/${appId}/public/data/classes`), where("ownerId", "==", currentUserId));
+            const q = query(collection(db, `users/${currentUserId}/classes`));
             
             masterListenerUnsubscribe = onSnapshot(q, (snapshot) => {
                 ui.noClassesMessage.classList.toggle('hidden', !snapshot.empty);
@@ -290,7 +430,7 @@
                     if (change.type === "removed") {
                         document.getElementById(classId)?.remove();
                         if (assignmentListeners.has(classId)) {
-                            assignmentListeners.get(classId)(); // Unsubscribe
+                            assignmentListeners.get(classId)();
                             assignmentListeners.delete(classId);
                         }
                     }
@@ -300,7 +440,7 @@
         }
 
         function attachAssignmentListener(classId) {
-            const q = query(collection(db, `artifacts/${appId}/public/data/classes/${classId}/assignments`));
+            const q = query(collection(db, `users/${currentUserId}/classes/${classId}/assignments`));
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 let totalEarned = 0, totalPossible = 0;
                 const assignmentsHtml = snapshot.docs.map(doc => {
@@ -308,11 +448,11 @@
                     totalEarned += parseFloat(assignment.earned) || 0;
                     totalPossible += parseFloat(assignment.possible) || 0;
                     return `
-                        <div class="flex items-center justify-between p-2 hover:bg-gray-100 rounded-md transition-colors">
+                        <div class="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-md transition-colors">
                             <span class="text-sm truncate pr-2">${assignment.name}</span>
                             <div class="flex items-center space-x-2 flex-shrink-0">
                                 <span class="text-sm font-semibold">${assignment.earned} / ${assignment.possible}</span>
-                                <button class="delete-assignment-btn text-gray-400 hover:text-red-600" data-assignment-id="${doc.id}"><i class="fas fa-trash-alt fa-xs"></i></button>
+                                <button class="delete-assignment-btn text-gray-400 hover:text-red-600 dark:hover:text-red-500" data-assignment-id="${doc.id}"><i class="fas fa-trash-alt fa-xs"></i></button>
                             </div>
                         </div>
                     `;
@@ -320,12 +460,13 @@
                 
                 const classCard = document.getElementById(classId);
                 if (classCard) {
-                    classCard.querySelector('.assignments-list').innerHTML = assignmentsHtml || '<p class="text-xs text-gray-400 p-2">No assignments yet.</p>';
+                    classCard.querySelector('.assignments-list').innerHTML = assignmentsHtml || '<p class="text-xs text-gray-400 dark:text-gray-500 p-2">No assignments yet.</p>';
                     const percentage = totalPossible > 0 ? (totalEarned / totalPossible) : null;
                     const gpa = calculateClassGPA(percentage);
                     classCard.querySelector('.class-grade').textContent = percentage !== null ? `${(percentage * 100).toFixed(2)}%` : 'N/A';
                     classCard.querySelector('.class-gpa').textContent = gpa.toFixed(2);
                     classCard.dataset.gpa = gpa;
+                    classCard.dataset.gradePercent = percentage !== null ? (percentage * 100) : -1;
                     updateOverallSummary();
                 }
             }, console.error);
@@ -335,56 +476,64 @@
         // --- UI Creation ---
         function createClassCard(id, name, credits) {
             const card = document.createElement('div');
-            card.className = 'class-card bg-white p-5 rounded-xl shadow-lg border flex flex-col transition-shadow hover:shadow-2xl';
+            card.className = 'class-card bg-white dark:bg-gray-800 p-5 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300 hover:shadow-2xl hover:-translate-y-1';
             card.id = id;
             card.dataset.credits = credits;
             card.dataset.gpa = "0";
+            card.dataset.gradePercent = "-1";
 
             card.innerHTML = `
                 <div class="flex justify-between items-start mb-4">
                     <div>
-                        <h3 class="text-xl font-bold text-gray-800">${name}</h3>
-                        <p class="text-sm text-gray-500">${credits} Credits</p>
+                        <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">${name}</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">${credits} Credits</p>
                     </div>
-                    <button class="delete-class-btn text-gray-400 hover:text-red-600 transition-colors"><i class="fas fa-times-circle text-xl"></i></button>
+                    <button class="delete-class-btn text-gray-400 hover:text-red-600 dark:hover:text-red-500 transition-colors"><i class="fas fa-times-circle text-xl"></i></button>
                 </div>
                 <div class="grid grid-cols-2 gap-4 mb-5 text-center">
-                    <div class="bg-indigo-50 p-3 rounded-lg">
-                        <p class="text-xs text-indigo-500 font-semibold">GRADE</p>
-                        <p class="class-grade text-2xl font-bold text-indigo-600">N/A</p>
+                    <div class="bg-indigo-50 dark:bg-indigo-900/30 p-3 rounded-lg">
+                        <p class="text-xs text-indigo-500 dark:text-indigo-400 font-semibold">GRADE</p>
+                        <p class="class-grade text-2xl font-bold text-indigo-600 dark:text-indigo-300">N/A</p>
                     </div>
-                    <div class="bg-sky-50 p-3 rounded-lg">
-                        <p class="text-xs text-sky-500 font-semibold">GPA</p>
-                        <p class="class-gpa text-2xl font-bold text-sky-600">0.00</p>
+                    <div class="bg-sky-50 dark:bg-sky-900/30 p-3 rounded-lg">
+                        <p class="text-xs text-sky-500 dark:text-sky-400 font-semibold">GPA</p>
+                        <p class="class-gpa text-2xl font-bold text-sky-600 dark:text-sky-300">0.00</p>
                     </div>
                 </div>
-                <div class="flex-grow bg-gray-50/70 p-3 rounded-lg flex flex-col">
-                    <h4 class="font-semibold text-sm mb-2 text-gray-600 px-1">Assignments</h4>
+                <div class="flex-grow bg-gray-50/70 dark:bg-gray-900/50 p-3 rounded-lg flex flex-col">
+                    <h4 class="font-semibold text-sm mb-2 text-gray-600 dark:text-gray-400 px-1">Assignments</h4>
                     <div class="assignments-list space-y-1 max-h-48 overflow-y-auto pr-2"></div>
                 </div>
                 <form class="add-assignment-form mt-4 flex items-center gap-2">
-                    <input type="text" name="name" class="flex-grow text-sm p-2 border rounded-md focus:ring-1 focus:ring-indigo-400" placeholder="Assignment Name" required>
-                    <input type="number" name="earned" class="w-16 text-sm p-2 border rounded-md focus:ring-1 focus:ring-indigo-400" placeholder="Pts" required>
-                    <input type="number" name="possible" class="w-16 text-sm p-2 border rounded-md focus:ring-1 focus:ring-indigo-400" placeholder="Max" required>
-                    <button type="submit" class="bg-gray-700 text-white w-9 h-9 rounded-md hover:bg-gray-800 flex-shrink-0 flex items-center justify-center transition-transform transform hover:scale-110"><i class="fas fa-plus"></i></button>
+                    <input type="text" name="name" class="flex-grow text-sm p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-indigo-400" placeholder="Assignment Name" required>
+                    <input type="number" name="earned" class="w-16 text-sm p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-indigo-400" placeholder="Pts" required>
+                    <input type="number" name="possible" class="w-16 text-sm p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-indigo-400" placeholder="Max" required>
+                    <button type="submit" class="bg-gray-700 text-white w-9 h-9 rounded-md hover:bg-gray-800 dark:bg-indigo-600 dark:hover:bg-indigo-500 flex-shrink-0 flex items-center justify-center transition-transform transform hover:scale-110"><i class="fas fa-plus"></i></button>
                 </form>
             `;
             return card;
         }
 
         // --- Event Handlers ---
-        ui.addClassBtn.addEventListener('click', () => ui.classModal.el.classList.add('flex'));
-        ui.classModal.cancelBtn.addEventListener('click', () => ui.classModal.el.classList.remove('flex'));
+        setupModal('class-modal', 'add-class-btn');
+        setupModal('settings-modal', 'settings-btn');
+        ui.themeToggleBtn.addEventListener('click', toggleTheme);
 
         ui.classModal.form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const className = document.getElementById('class-name').value;
             const classCredits = document.getElementById('class-credits').value;
             try {
-                await addDoc(collection(db, `artifacts/${appId}/public/data/classes`), { name: className, credits: parseFloat(classCredits), ownerId: currentUserId });
+                await addDoc(collection(db, `users/${currentUserId}/classes`), { name: className, credits: parseFloat(classCredits) });
                 ui.classModal.el.classList.remove('flex');
                 ui.classModal.form.reset();
             } catch (error) { console.error("Error adding class:", error); }
+        });
+
+        ui.settingsModal.form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveSettings();
+            ui.settingsModal.el.classList.remove('flex');
         });
         
         ui.classesContainer.addEventListener('submit', async (e) => {
@@ -393,7 +542,7 @@
                 const form = e.target;
                 const classId = form.closest('.class-card').id;
                 try {
-                    await addDoc(collection(db, `artifacts/${appId}/public/data/classes/${classId}/assignments`), {
+                    await addDoc(collection(db, `users/${currentUserId}/classes/${classId}/assignments`), {
                         name: form.elements.name.value,
                         earned: parseFloat(form.elements.earned.value),
                         possible: parseFloat(form.elements.possible.value),
@@ -413,26 +562,24 @@
                 const confirmed = await showConfirmation('Delete Class?', `This will permanently delete "${className}" and all of its assignments.`);
                 if (confirmed) {
                     try {
-                        const assignmentsQuery = query(collection(db, `artifacts/${appId}/public/data/classes/${card.id}/assignments`));
+                        const assignmentsQuery = query(collection(db, `users/${currentUserId}/classes/${card.id}/assignments`));
                         const assignmentsSnapshot = await getDocs(assignmentsQuery);
                         const batch = writeBatch(db);
                         assignmentsSnapshot.forEach(doc => batch.delete(doc.ref));
-                        batch.delete(doc(db, `artifacts/${appId}/public/data/classes`, card.id));
+                        batch.delete(doc(db, `users/${currentUserId}/classes`, card.id));
                         await batch.commit();
                     } catch (error) { console.error("Error deleting class and its assignments:", error); }
                 }
             }
 
             if (deleteAssignmentBtn) {
-                 const classId = deleteAssignmentBtn.closest('.class-card').id;
-                 const { assignmentId } = deleteAssignmentBtn.dataset;
-                 try {
-                    await deleteDoc(doc(db, `artifacts/${appId}/public/data/classes/${classId}/assignments`, assignmentId));
-                 } catch(error) { console.error("Error deleting assignment:", error); }
+                const classId = deleteAssignmentBtn.closest('.class-card').id;
+                const { assignmentId } = deleteAssignmentBtn.dataset;
+                try {
+                    await deleteDoc(doc(db, `users/${currentUserId}/classes/${classId}/assignments`, assignmentId));
+                } catch(error) { console.error("Error deleting assignment:", error); }
             }
         });
     </script>
-
 </body>
 </html>
-
